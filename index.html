@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fastlane Appfile & Matchfile Generator — iOS CI/CD Config Builder</title>
+<meta name="description" content="Generate fastlane Appfile and Matchfile configuration files for iOS. Set app identifier, Apple ID, team IDs, match storage (git, S3, GCS), type (appstore, adhoc, development), and export ready-to-use Ruby config. Free, browser-only." />
+<link rel="canonical" href="https://fastlane-config-generator.vercel.app/" />
+<meta property="og:title" content="Fastlane Appfile & Matchfile Generator" />
+<meta property="og:description" content="Generate fastlane Appfile, Matchfile, and Gemfile for iOS CI/CD in seconds. Covers all match storage modes and signing types. Free." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Fastlane Appfile & Matchfile Generator" />
+<meta name="twitter:description" content="Generate fastlane Appfile, Matchfile, and Gemfile for iOS CI/CD. All storage modes and signing types. Free." />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Fastlane Appfile & Matchfile Generator","url":"https://fastlane-config-generator.vercel.app/","description":"Generate fastlane Appfile, Matchfile, and Gemfile configuration files for iOS CI/CD. Covers all match storage modes and signing types.","applicationCategory":"DeveloperApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<style>
+  :root{
+    --bg:#0b0c10;--panel:#15171f;--panel2:#1c1f2a;--ink:#eef1f7;--muted:#9aa3b5;
+    --line:#262a36;--accent:#5b8cff;--ok:#34d399;--warn:#fbbf24;--err:#f87171;
+    --radius:14px;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:radial-gradient(1100px 600px at 60% -10%,#0a1f2e 0,transparent 55%),var(--bg)}
+  header{padding:42px 22px 10px;max-width:1100px;margin:0 auto}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);
+    border:1px solid var(--line);padding:5px 11px;border-radius:999px;background:var(--panel)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  h1{font-size:30px;margin:16px 0 6px;letter-spacing:-.4px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--muted);max-width:660px}
+  main{max-width:1100px;margin:18px auto 60px;padding:0 22px;display:grid;grid-template-columns:1fr 420px;gap:22px;align-items:start}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+
+  /* Tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:16px}
+  .tab-btn{padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:none;
+    color:var(--muted);font:14px/1 inherit;font-weight:600;cursor:pointer}
+  .tab-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .tab-btn.active{background:rgba(91,140,255,.15);border-color:var(--accent);color:var(--accent)}
+
+  /* Cards */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:14px}
+  .card-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+  .form-row{margin-bottom:14px}
+  .form-row:last-child{margin-bottom:0}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;font-weight:500}
+  input[type=text],select{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:8px 12px;font:inherit;font-size:13.5px;outline:none;width:100%}
+  input[type=text]:focus,select:focus{border-color:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .check-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;font-size:13.5px}
+  .check-row input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+
+  /* Output */
+  .output-sticky{position:sticky;top:16px}
+  .output-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .output-header{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap}
+  .output-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1}
+  .fname{font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .action-btn{cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 12px;
+    font:12px/1 inherit;font-weight:600;background:none;color:var(--muted)}
+  .action-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .action-btn.primary{background:linear-gradient(180deg,#6b97ff,#4a78ff);border:0;color:#fff}
+  .action-btn.primary:hover{opacity:.9}
+  pre{margin:0;padding:16px;font-size:12px;font-family:var(--mono);white-space:pre;
+    color:var(--ink);max-height:600px;overflow:auto;line-height:1.6}
+
+  .tip-box{background:linear-gradient(135deg,#1a2035 0%,#141825 100%);border:1px solid #2a304a;
+    border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:12px}
+  footer{max-width:1100px;margin:0 auto;padding:0 22px 50px;color:#6b7385;font-size:12.5px}
+  footer a{color:var(--muted)}
+  .tag{display:inline-flex;background:rgba(91,140,255,.12);color:var(--accent);border-radius:5px;
+    padding:2px 7px;font-size:11.5px;font-weight:700;font-family:var(--mono);vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <span class="badge"><span class="dot"></span>Appfile · Matchfile · Gemfile · all storage modes · browser-only</span>
+  <h1>Fastlane <span>Config Generator</span></h1>
+  <p class="sub">Generate fastlane <code>Appfile</code>, <code>Matchfile</code>, and <code>Gemfile</code> for your iOS project. Configure match storage (git, S3, Google Cloud), signing type, team IDs, and export valid Ruby files in seconds.</p>
+</header>
+<main>
+
+<!-- Left: form -->
+<div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab_appfile"  onclick="switchTab('appfile')">Appfile</button>
+    <button class="tab-btn"        id="tab_matchfile" onclick="switchTab('matchfile')">Matchfile</button>
+    <button class="tab-btn"        id="tab_gemfile"   onclick="switchTab('gemfile')">Gemfile</button>
+  </div>
+
+  <!-- APPFILE panel -->
+  <div id="panel_appfile">
+    <div class="card">
+      <div class="card-title">App Identity</div>
+      <div class="form-row">
+        <label for="app_identifier">app_identifier <span class="tag">required</span></label>
+        <input type="text" id="app_identifier" placeholder="com.example.MyApp" oninput="generate()" />
+        <div class="hint">Your app's bundle ID. Used by most fastlane actions.</div>
+      </div>
+      <div class="form-row">
+        <label for="apple_id">apple_id (Apple ID / email)</label>
+        <input type="text" id="apple_id" placeholder="dev@example.com" oninput="generate()" />
+        <div class="hint">Apple Developer account email. Can be overridden with FASTLANE_USER env var.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Developer Portal Team</div>
+      <div class="form-row">
+        <label for="team_name">team_name</label>
+        <input type="text" id="team_name" placeholder="Acme Corp" oninput="generate()" />
+      </div>
+      <div class="form-row">
+        <label for="team_id">team_id</label>
+        <input type="text" id="team_id" placeholder="ABCD123456" oninput="generate()" />
+        <div class="hint">10-character team identifier from developer.apple.com/account.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">App Store Connect Team</div>
+      <div class="form-row">
+        <label for="itc_team_name">itc_team_name</label>
+        <input type="text" id="itc_team_name" placeholder="Acme Corp" oninput="generate()" />
+        <div class="hint">Only needed if you belong to multiple App Store Connect teams.</div>
+      </div>
+      <div class="form-row">
+        <label for="itc_team_id">itc_team_id</label>
+        <input type="text" id="itc_team_id" placeholder="123456789" oninput="generate()" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Xcode Project (optional)</div>
+      <div class="form-row">
+        <label for="workspace">workspace</label>
+        <input type="text" id="workspace" placeholder="MyApp.xcworkspace" oninput="generate()" />
+      </div>
+      <div class="form-row">
+        <label for="xcodeproj">xcodeproj</label>
+        <input type="text" id="xcodeproj" placeholder="MyApp.xcodeproj" oninput="generate()" />
+      </div>
+      <div class="form-row">
+        <label for="scheme">scheme</label>
+        <input type="text" id="scheme" placeholder="MyApp" oninput="generate()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MATCHFILE panel -->
+  <div id="panel_matchfile" style="display:none">
+    <div class="card">
+      <div class="card-title">Storage Mode</div>
+      <div class="form-row">
+        <label for="storage_mode">storage_mode</label>
+        <select id="storage_mode" onchange="onStorageMode(this.value);generate()">
+          <option value="git">git</option>
+          <option value="s3">s3</option>
+          <option value="google_cloud">google_cloud</option>
+          <option value="gitlab_secure_files">gitlab_secure_files</option>
+        </select>
+        <div class="hint">Where match stores certificates and provisioning profiles.</div>
+      </div>
+      <div id="panel_git">
+        <div class="form-row">
+          <label for="match_git_url">git_url <span class="tag">required for git</span></label>
+          <input type="text" id="match_git_url" placeholder="https://github.com/your-org/certs.git" oninput="generate()" />
+          <div class="hint">Private git repo URL where match stores certs. Keep this repo private.</div>
+        </div>
+      </div>
+      <div id="panel_s3" style="display:none">
+        <div class="form-row">
+          <label for="s3_bucket">s3_bucket</label>
+          <input type="text" id="s3_bucket" placeholder="my-fastlane-match-certs" oninput="generate()" />
+        </div>
+        <div class="form-row">
+          <label for="s3_region">s3_region</label>
+          <input type="text" id="s3_region" value="us-east-1" oninput="generate()" />
+        </div>
+        <div class="form-row">
+          <label for="s3_prefix">s3_prefix (optional)</label>
+          <input type="text" id="s3_prefix" placeholder="certs/" oninput="generate()" />
+        </div>
+      </div>
+      <div id="panel_gcs" style="display:none">
+        <div class="form-row">
+          <label for="gcs_bucket">google_cloud_bucket_name</label>
+          <input type="text" id="gcs_bucket" placeholder="my-match-bucket" oninput="generate()" />
+        </div>
+        <div class="form-row">
+          <label for="gcs_project">google_cloud_project_id</label>
+          <input type="text" id="gcs_project" placeholder="my-gcp-project" oninput="generate()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Signing Type & App</div>
+      <div class="form-row">
+        <label for="match_type">type</label>
+        <select id="match_type" onchange="generate()">
+          <option value="appstore">appstore</option>
+          <option value="adhoc">adhoc</option>
+          <option value="development">development</option>
+          <option value="enterprise">enterprise</option>
+        </select>
+        <div class="hint">The default type used when running <code>fastlane match</code>.</div>
+      </div>
+      <div class="form-row">
+        <label for="match_app_identifier">app_identifier</label>
+        <input type="text" id="match_app_identifier" placeholder="com.example.MyApp, com.example.MyApp.Extension" oninput="generate()" />
+        <div class="hint">Comma-separate multiple identifiers (extensions, watch apps, etc.).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Team & Credentials</div>
+      <div class="form-row">
+        <label for="match_username">username (Apple ID)</label>
+        <input type="text" id="match_username" placeholder="dev@example.com" oninput="generate()" />
+      </div>
+      <div class="form-row">
+        <label for="match_team_id">team_id</label>
+        <input type="text" id="match_team_id" placeholder="ABCD123456" oninput="generate()" />
+        <div class="hint">Defaults to Appfile's team_id if blank.</div>
+      </div>
+      <div class="form-row">
+        <label for="match_team_name">team_name</label>
+        <input type="text" id="match_team_name" placeholder="Acme Corp" oninput="generate()" />
+      </div>
+      <div class="form-row">
+        <label for="keychain_name">keychain_name</label>
+        <input type="text" id="keychain_name" value="login.keychain" oninput="generate()" />
+        <div class="hint">On CI use a custom keychain name (e.g. <code>fastlane_tmp_keychain</code>).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Options</div>
+      <label class="check-row"><input type="checkbox" id="shallow_clone" onchange="generate()" />shallow_clone — skip git history for faster clones on CI</label>
+      <label class="check-row"><input type="checkbox" id="clone_branch_directly" onchange="generate()" />clone_branch_directly — reduces clone time for large repos</label>
+      <label class="check-row"><input type="checkbox" id="force_for_new_devices" onchange="generate()" />force_for_new_devices — re-generate profiles when new device UDIDs are added</label>
+      <label class="check-row"><input type="checkbox" id="readonly" onchange="generate()" />readonly — only install, never create or update certificates</label>
+      <label class="check-row"><input type="checkbox" id="verbose" onchange="generate()" />verbose — show detailed output</label>
+    </div>
+  </div>
+
+  <!-- GEMFILE panel -->
+  <div id="panel_gemfile" style="display:none">
+    <div class="card">
+      <div class="card-title">About Gemfile</div>
+      <p style="color:var(--muted);font-size:13.5px;margin:0">Place the <code>Gemfile</code> in the root of your project (same level as your <code>.xcodeproj</code>). Run <code>bundle install</code> once, then prefix all fastlane commands with <code>bundle exec</code> to ensure the correct gem versions are used across your team and CI.</p>
+      <br>
+      <p style="color:var(--muted);font-size:13.5px;margin:0">The generated Gemfile is a sensible starting point — uncomment the plugins you use.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Right: output -->
+<div class="output-sticky">
+  <div class="output-card">
+    <div class="output-header">
+      <span class="output-title">Output</span>
+      <span class="fname" id="filenameBadge">fastlane/Appfile</span>
+      <button class="action-btn" id="copyBtn" onclick="copyOutput()">Copy</button>
+      <button class="action-btn primary" onclick="downloadOutput()">↓ Download</button>
+    </div>
+    <pre id="output"></pre>
+  </div>
+
+  <div class="tip-box">
+    <div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">✦ Support this project</div>
+      <div style="color:#9aa3b5;font-size:13px">Free tool by Orb Intelligence.</div>
+    </div>
+    <a href="https://buy.stripe.com/4gM28t2xG3SngLvbiY6wE01" target="_blank" rel="noopener"
+      style="display:inline-block;background:linear-gradient(180deg,#6b97ff,#4a78ff);color:#fff;font-weight:650;font-size:14px;padding:10px 20px;border-radius:10px;text-decoration:none;white-space:nowrap">
+      Support · $9.90
+    </a>
+  </div>
+</div>
+
+<footer>
+  Built by <b>Orb Intelligence</b>. Configuration is done locally — nothing uploaded. Fastlane is open source (<a href="https://fastlane.tools/" rel="noopener" target="_blank">fastlane.tools</a>).
+  <br><br>
+  More free tools:
+  <a href="https://appstore-metadata-auditor.vercel.app/" rel="noopener">Metadata Auditor</a> ·
+  <a href="https://ios-privacy-policy-generator.vercel.app/" rel="noopener">Privacy Policy Generator</a> ·
+  <a href="https://ios-app-review-generator.vercel.app/" rel="noopener">Review Responder</a> ·
+  <a href="https://appstore-screenshot-generator-theta.vercel.app/" rel="noopener">Screenshot Generator</a> ·
+  <a href="https://appstore-keyword-optimizer.vercel.app/" rel="noopener">Keyword Optimizer</a> ·
+  <a href="https://appstore-release-notes-generator.vercel.app/" rel="noopener">Release Notes Generator</a> ·
+  <a href="https://ios-app-icon-resizer.vercel.app/" rel="noopener">Icon Resizer</a> ·
+  <a href="https://appstore-submission-checklist.vercel.app/" rel="noopener">Submission Checklist</a> ·
+  <a href="https://ios-privacy-manifest-generator.vercel.app/" rel="noopener">Privacy Manifest Generator</a> ·
+  <a href="https://ios-entitlements-generator.vercel.app/" rel="noopener">Entitlements Generator</a> ·
+  <a href="https://testflight-feedback-organizer.vercel.app/" rel="noopener">Beta Feedback Organizer</a> ·
+  <a href="https://appstore-localization-helper.vercel.app/" rel="noopener">Localization Helper</a> ·
+  <a href="https://appstore-age-rating-calculator.vercel.app/" rel="noopener">Age Rating Calculator</a> ·
+  <a href="https://ios-iap-configurator.vercel.app/" rel="noopener">IAP Configurator</a> ·
+  <a href="https://ios-push-payload-builder.vercel.app/" rel="noopener">Push Payload Builder</a> ·
+  <a href="https://xcode-build-phase-generator.vercel.app/" rel="noopener">Build Phase Generator</a> ·
+  <a href="https://ios-url-scheme-tester.vercel.app/" rel="noopener">URL Scheme Tester</a> ·
+  <a href="https://swift-package-manifest-builder.vercel.app/" rel="noopener">SPM Manifest Builder</a> ·
+  <a href="https://ios-info-plist-generator.vercel.app/" rel="noopener">Info.plist Generator</a> ·
+  <a href="https://xcode-xcconfig-generator.vercel.app/" rel="noopener">xcconfig Generator</a> ·
+  <a href="https://fastlane-config-generator.vercel.app/" rel="noopener">Fastlane Config Generator</a>
+</footer>
+
+</main>
+<script src="fastlane.js"></script>
+</body>
+</html>
